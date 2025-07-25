@@ -14,7 +14,7 @@ class TextDataset(Dataset):
 
         if augment:
             splitext = os.path.splitext(csv_path)
-            csv_path = splitext[0] + '_augment1' + splitext[1]
+            csv_path = splitext[0] + '_augment' + splitext[1]
             print("已进行数据增强")
 
         self.data = pd.read_csv(csv_path)

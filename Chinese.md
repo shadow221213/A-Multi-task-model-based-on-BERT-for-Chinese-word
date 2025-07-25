@@ -30,9 +30,18 @@
 
 ## 项目简介
 
-查询资料发现中文分词、文本分类和命名实体识别三个任务经常同时出现并使用，想到为什么不能将他们合并构建在一起，于是产生了本项目的多任务系统。
+本项目采用`python==3.9.21`编写。
 
-本项目采用`python==3.9.21`编写，具体环境请使用`pip install -r requirements.txt`下载。
+如果您使用的是`GPU`版本，可以使用`pip install -r requirements.txt`下载依赖项。
+
+如果您使用的是`CPU`版本，可以使用`pip install -r requirements_cpu.txt`下载依赖项。
+
+请使用`python main.py --mtl --augment --train --evaluate --freeze_cls`命令使用增强数据训练并评估模型。  
+如需查看更多详细命令，请使用`python main.py --help`或 `pyhton main.py -h`命令查看。
+
+可以通过`tensorboard --logdir=./output/mtl_aug`查看训练过程中的性能图。
+
+查询资料发现中文分词、文本分类和命名实体识别三个任务经常同时出现并使用，想到为什么不能将他们合并构建在一起，于是产生了本项目的多任务系统。
 
 对分词任务采用BiLSTM（双向LSTM）提取上下文信息便于分词（理解歧义词），
 对分类任务采用Linear做归类处理（因为BERT已经足够处理分类的大部分信息），

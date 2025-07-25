@@ -49,7 +49,7 @@ class MultiTaskLoss(nn.Module):
         ner_weight = 1.0
         total_loss = (
                 seg_weight * torch.exp(-self.log_vars[0]) * seg_loss + 0.5 * self.log_vars[0] +
-                cls_weight * torch.exp(-self.log_vars[1]) * cls_loss + 0.5 * self.log_vars[1] +
+                # cls_weight * torch.exp(-self.log_vars[1]) * cls_loss + 0.5 * self.log_vars[1] +
                 ner_weight * torch.exp(-self.log_vars[2]) * ner_loss + 0.5 * self.log_vars[2]
         )
         return total_loss.mean( )

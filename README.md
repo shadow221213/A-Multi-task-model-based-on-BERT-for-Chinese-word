@@ -30,9 +30,18 @@ A Multi-task system uses the same pre-trained model as a parameter-sharing layer
 
 ## Project Introduction
 
-Upon researching the literature, it was found that the three tasks of Chinese word Segmentation, Text Classification, and NER often appear together and are used in conjunction. This led to the idea of combining them into a single system, resulting in the Multi-task system proposed in this project.
+This project is written in `python==3.9.21`, for the specific environment.
 
-This project is written in `python==3.9.21`, for the specific environment, please use `pip install -r requirements.txt` to download.
+If you are using the GPU version, you can use `pip install -r requirements.txt` Download dependencies.
+
+If you are using the CPU version, you can use `pip install -r requirements_cpu.txt` Download dependencies.
+
+Please use `python main.py --mtl --augment --train --evaluate --freeze_cls` to train and evaluate the model using the augment data.
+For more detailed commands, please use `python main.py --help` or `pyhton main.py -h` to view.
+
+You can view performance graphs during training by running `tensorboard --logdir=./output/mtl_aug`.
+
+Upon researching the literature, it was found that the three tasks of Chinese word Segmentation, Text Classification, and NER often appear together and are used in conjunction. This led to the idea of combining them into a single system, resulting in the Multi-task system proposed in this project.
 
 For the Word Segmentation task, BiLSTM (bidirectional LSTM) is used to extract contextual information to facilitate word Segmentation (understanding ambiguous words).
 For the Text Classification task, a linear model is used for categorization (since BERT already handles most of the information required for Classification).

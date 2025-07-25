@@ -40,8 +40,8 @@ def parse_args( ):
     parser.add_argument('--train', action='store_true', help='Enable train model')
     parser.add_argument('--evaluate', action='store_true', help='Enable evaluate model')
     parser.add_argument('--mtl', action='store_true', help='Enable MTL model')
-    parser.add_argument('--seg', action='store_true', help='Enable segmentation model')
-    parser.add_argument('--cls', action='store_true', help='Enable classification model')
+    parser.add_argument('--seg', action='store_true', help='Enable Segmentation model')
+    parser.add_argument('--cls', action='store_true', help='Enable Classification model')
     parser.add_argument('--ner', action='store_true', help='Enable NER model')
 
     return parser.parse_args( )
