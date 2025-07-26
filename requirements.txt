@@ -1,8 +1,9 @@
+accelerate==0.34.2
 jieba==0.42.1
-numpy==2.3.1
+numpy==1.26.4
 OpenHowNet==2.0
-pandas==2.3.1
-scikit_learn==1.7.1
+pandas==2.2.3
+scikit_learn==1.6.1
 sentence_transformers==4.1.0
 termcolor==3.1.0
 torch==2.6.0+cu118
