@@ -30,7 +30,24 @@
 
 ## 项目简介
 
-本项目采用`python==3.9.21`编写。
+本项目采用`python==3.9.21`和`torch==2.6.0`编写。
+
+如果你需要下载`torch`，请使用这些选项去下载依赖。
+
+```
+# ROCM 6.1 (Linux only)
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/rocm6.1
+# ROCM 6.2.4 (Linux only)
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/rocm6.2.4
+# CUDA 11.8
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu118
+# CUDA 12.4
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+# CUDA 12.6
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu126
+# CPU only
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+```
 
 如果您使用的是`GPU`版本，可以使用`pip install -r requirements.txt`下载依赖项。
 
