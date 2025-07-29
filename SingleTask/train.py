@@ -77,34 +77,19 @@ class UnfreezeCallback(TrainerCallback):
                 for param in layer.parameters( ):
                     param.requires_grad = True
 
-def stl_compute_metrics( eval_pred: EvalPrediction ):
-    predictions = eval_pred.predictions  # 模型预测结果
-    labels = eval_pred.label_ids  # 真实标签
+def stl_compute_metrics(eval_pred: EvalPrediction):
+    predictions, labels = eval_pred.predictions, eval_pred.label_ids
 
-    def masked_accuracy( logits, labels, ignore_index=-100 ):
-        # 过滤掉填充标签
-        mask = (labels != ignore_index).flatten( )
-        preds = logits.argmax(-1).flatten( )[mask]
-        targets = labels.flatten( )[mask]
-        return accuracy_score(targets, preds)
+    # 过滤掉填充标签 -100
+    mask = labels != -100
+    active_preds = predictions.argmax(-1)[mask]
+    active_labels = labels[mask]
 
-    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=-100)
-
-    # 计算各任务指标
-    acc = masked_accuracy(predictions, labels)
-
-    predictions = torch.tensor(predictions) if not isinstance(predictions, torch.Tensor) else predictions
-    labels = torch.tensor(labels) if not isinstance(labels, torch.Tensor) else labels
-
-    predictions_reshaped = predictions.view(-1, predictions.shape[-1])
-    labels_reshaped = labels.view(-1)
-
-    loss = loss_fn(predictions_reshaped, labels_reshaped).mean( ).item( )  # 计算损失
+    acc = accuracy_score(active_labels, active_preds)
 
     metrics = {
-        'accuracy':     acc,
-        # 'loss': loss
-        }
+        'accuracy': acc,
+    }
 
     return metrics
 
@@ -153,6 +138,7 @@ def stl_train(task_type, args, tokenizer, device):
         max_grad_norm=1.0,
         fp16=True,
         label_names=[f'{task_type}_labels'],
+        dataloader_num_workers=4,
         include_inputs_for_metrics=False,
         gradient_accumulation_steps=2
     )

@@ -13,7 +13,7 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available( ) else 'cpu')
 
     if args.mtl:
-        mtl_trainer = mtl_train(args, tokenizer, device)
+        mtl_trainer = mtl_train(args, tokenizer, device, is_final_eval=False)
         if args.train:
             print("开始训练mtl模型")
             mtl_trainer.train( )
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     if args.evaluate:
         args.freeze = False
         if args.mtl:
-            mtl_trainer = mtl_train(args, tokenizer, device)
+            mtl_trainer = mtl_train(args, tokenizer, device, is_final_eval=True)
             eval_mtl = get_results(mtl_trainer)
             print(f'多任务模型测试结果：{eval_mtl}')
         if args.seg:
@@ -73,6 +73,12 @@ if __name__ == "__main__":
         if args.cls:
             cls_trainer = stl_train("cls", args, tokenizer, device)
             eval_cls = get_results(cls_trainer)
+            print(f'cls模型测试结果：{eval_cls}')
+        if args.ner:
+            ner_trainer = stl_train("ner", args, tokenizer, device)
+            eval_ner = get_results(ner_trainer)
+            print(f'ner模型测试结果：{eval_ner}')
+
             print(f'cls模型测试结果：{eval_cls}')
         if args.ner:
             ner_trainer = stl_train("ner", args, tokenizer, device)
