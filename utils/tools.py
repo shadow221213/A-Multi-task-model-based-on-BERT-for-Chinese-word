@@ -35,6 +35,7 @@ def parse_args( ):
     parser.add_argument('--output_dir', type=str, default='./output', help='Directory to save model checkpoints')
     parser.add_argument('--patience', type=int, default=3, help='Early stopping patience')
     parser.add_argument('--unfreeze_epoch', type=int, default=3, help='Epoch to unfreeze cls layers')
+    parser.add_argument('--grad_accumulation_steps', type=int, default=4, help='Gradient Accumulation steps for training')
     parser.add_argument('--freeze_cls', action='store_true', help='Freeze classification layers initially')
     parser.add_argument('--augment', action='store_true', help='Enable data augmentation')
     parser.add_argument('--train', action='store_true', help='Enable train model')

@@ -122,6 +122,7 @@ class TextDataset(Dataset):
                 except IndexError as e:
                     # 异常处理：打印详细信息并填充'O'
                     print(f"\n===== 标签对齐错误 =====")
+                    print(f"报错：{e}")
                     print(f"文本：{text}")
                     print(f"Token：{token} (start={start}, end={end})")
                     print(f"原始标签数量：seg={len(seg_labels)}, ner={len(ner_labels)}")

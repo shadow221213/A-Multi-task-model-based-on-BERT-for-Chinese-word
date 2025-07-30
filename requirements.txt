@@ -1,6 +1,6 @@
 accelerate==0.34.2
 jieba==0.42.1
-numpy==1.26.3
+numpy==1.26.4
 OpenHowNet==2.0
 pandas==2.2.3
 scikit_learn==1.6.1
