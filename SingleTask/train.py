@@ -9,9 +9,8 @@ from transformers import (AutoTokenizer, EarlyStoppingCallback, EvalPrediction,
 
 from data.preprocess import TextDataset
 from SingleTask.loss import ClsCrossEntropy, NerFocalLoss, SegFocalLoss
-from SingleTask.model import (ClsModel, ClsModelConfig,
-                   NerModel, NerModelConfig, SegModel,
-                   SegModelConfig)
+from SingleTask.model import (ClsModel, ClsModelConfig, NerModel,
+                              NerModelConfig, SegModel, SegModelConfig)
 from utils.tools import parse_args
 
 
@@ -77,7 +76,7 @@ class UnfreezeCallback(TrainerCallback):
                 for param in layer.parameters( ):
                     param.requires_grad = True
 
-def stl_compute_metrics(eval_pred: EvalPrediction):
+def stl_compute_metrics( eval_pred: EvalPrediction ):
     predictions, labels = eval_pred.predictions, eval_pred.label_ids
 
     # 过滤掉填充标签 -100
@@ -89,11 +88,11 @@ def stl_compute_metrics(eval_pred: EvalPrediction):
 
     metrics = {
         'accuracy': acc,
-    }
+        }
 
     return metrics
 
-def stl_train(task_type, args, tokenizer, device):
+def stl_train( task_type, args, tokenizer, device ):
     train_dataset = TextDataset(args.train_data, tokenizer, augment=args.augment)
     test_dataset = TextDataset(args.test_data, tokenizer)
 
@@ -141,7 +140,7 @@ def stl_train(task_type, args, tokenizer, device):
         dataloader_num_workers=4,
         include_inputs_for_metrics=False,
         gradient_accumulation_steps=2
-    )
+        )
 
     # 优化器
     num_training_steps = len(train_dataset) // args.batch_size * args.epochs \
@@ -165,6 +164,6 @@ def stl_train(task_type, args, tokenizer, device):
         optimizers=(optimizer, scheduler_warmup),
         compute_metrics=stl_compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=args.patience)]
-    )
+        )
 
     return trainer

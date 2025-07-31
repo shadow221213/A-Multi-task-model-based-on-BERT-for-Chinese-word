@@ -14,14 +14,15 @@ import pandas as pd
 import torch
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from tqdm import tqdm
 from transformers import AutoTokenizer
+
 from data.aeda import Aeda
 from data.backTranslator import BackTranslator
 from data.pseudoLabeler import PseudoLabeler
 from data.synonym import Synonym
 from MutiTask.model import MultiTaskModel, MultiTaskModelConfig
 from utils.tools import parse_args_aug
-from tqdm import tqdm
 
 
 class DataAugmenterParallel:
@@ -33,22 +34,22 @@ class DataAugmenterParallel:
         chunksize (int): 数据分块大小，默认为1000
     """
 
-    def __init__(self, input_csv, output_csv, temp_dir, chunksize=1000):
+    def __init__( self, input_csv, output_csv, temp_dir, chunksize=1000 ):
         self.input_csv = input_csv
         self.output_csv = output_csv
         self.data = pd.read_csv(input_csv)
         self.temp_dir = temp_dir
         self.chunksize = chunksize
-        self.total_samples = self._calculate_total_samples()
+        self.total_samples = self._calculate_total_samples( )
 
-        self.num_workers = max(1, cpu_count() // 2)
+        self.num_workers = max(1, cpu_count( ) // 2)
         os.makedirs(self.temp_dir, exist_ok=True)
 
         self.ctx = multiprocessing.get_context('spawn')
         self.counter = self.ctx.Value('i', 0)
-        self.lock = self.ctx.Lock()
+        self.lock = self.ctx.Lock( )
 
-    def run(self, max_len, args):
+    def run( self, max_len, args ):
         """执行并行增强流程"""
         # 主进程日志抑制
         warnings.filterwarnings("ignore")
@@ -59,7 +60,7 @@ class DataAugmenterParallel:
         logger.propagate = False
 
         # 分块读取数据
-        chunks, now = self._prepare_chunks()
+        chunks, now = self._prepare_chunks( )
         if not chunks:
             print("没有需要处理的新数据")
             return
@@ -68,11 +69,11 @@ class DataAugmenterParallel:
         best_model_path = f"{output_dir}/checkpoint-best"
 
         tokenizer = AutoTokenizer.from_pretrained(args.pretrained_model, use_fast=True)
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device('cuda' if torch.cuda.is_available( ) else 'cpu')
 
         config = MultiTaskModelConfig(
             model_name=args.pretrained_model
-        )
+            )
 
         try:
             best_model = MultiTaskModel.from_pretrained(best_model_path, config=config).to(device)
@@ -82,7 +83,7 @@ class DataAugmenterParallel:
 
         try:
             model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2',
-                                        device="cuda" if torch.cuda.is_available() else "cpu")
+                                        device="cuda" if torch.cuda.is_available( ) else "cpu")
             pseudo_labeler = PseudoLabeler(best_model, tokenizer, max_len=max_len)
             back_translator = BackTranslator(max_len=max_len)
         except Exception as e:
@@ -92,7 +93,7 @@ class DataAugmenterParallel:
         bar_format = "{l_bar}{bar:50}{r_bar}{bar:-50b}"
         with tqdm(total=self.total_samples, desc="Total Progress", position=0, bar_format=bar_format) as pbar:
             pbar.n = now
-            pbar.refresh()
+            pbar.refresh( )
             # 创建进程池
             with self.ctx.Pool(processes=self.num_workers, initializer=self.init_child_process,
                                initargs=(print_lock, self.lock, self.counter),
@@ -104,31 +105,31 @@ class DataAugmenterParallel:
                     results.append(pool.apply_async(
                         self._process_chunk,
                         (model, pseudo_labeler, back_translator, (input_path, output_path, max_len))
-                    ))
+                        ))
 
                 last_value = 0
-                while not all(r.ready() for r in results):
+                while not all(r.ready( ) for r in results):
                     with self.lock:  # 安全读取当前值
                         current_value = self.counter.value
                     pbar.update(current_value - last_value)
                     last_value = current_value
-                    pbar.refresh()
+                    pbar.refresh( )
                     time.sleep(0.1)
 
-        self._merge_results()
+        self._merge_results( )
 
-    def _calculate_total_samples(self):
+    def _calculate_total_samples( self ):
         """计算总样本数（用于进度条）"""
         if not os.path.exists(self.input_csv):
             return 0
         with open(self.input_csv, 'r', encoding='utf-8') as f:
             return sum(1 for _ in f) - 1  # 减去标题行
 
-    def _merge_results(self):
+    def _merge_results( self ):
         output_files = sorted(
             [os.path.join(self.temp_dir, f) for f in os.listdir(self.temp_dir) if f.startswith("output_chunk_")],
             key=lambda x: int(x.split("_")[-1].split(".")[0])
-        )
+            )
 
         # 使用生成器减少内存占用
         data = pd.read_csv(self.input_csv)
@@ -143,18 +144,18 @@ class DataAugmenterParallel:
         print(f"新增样本: {len(merged_df) - len(data)}")
         print(f"去重后总计: {len(merged_df)}")
 
-    def get_processed_chunks(self):
+    def get_processed_chunks( self ):
         """获取已完成的chunk编号"""
-        processed = set()
+        processed = set( )
         for f in os.listdir(self.temp_dir):
             if f.startswith("output_chunk_"):
                 chunk_id = f.split("_")[2].split(".")[0]
                 processed.add(int(chunk_id))
         return sorted(processed)
 
-    def _prepare_chunks(self):
+    def _prepare_chunks( self ):
         """准备数据分块（跳过已处理）"""
-        processed = self.get_processed_chunks()
+        processed = self.get_processed_chunks( )
         chunks = []
         sum = 0
 
@@ -169,7 +170,7 @@ class DataAugmenterParallel:
         return chunks, sum
 
     @staticmethod
-    def init_child_process(plock, glock, gcounter):
+    def init_child_process( plock, glock, gcounter ):
         """子进程初始化：抑制日志+继承锁"""
         global print_lock, lock, counter
         print_lock = plock
@@ -189,25 +190,25 @@ class DataAugmenterParallel:
         sys.stderr = open(os.devnull, 'w')
 
         # 显存优化
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        if torch.cuda.is_available( ):
+            torch.cuda.empty_cache( )
 
     @staticmethod
-    def _process_chunk(model, pseudo_labeler, back_translator, args):
+    def _process_chunk( model, pseudo_labeler, back_translator, args ):
         """处理单个数据块（静态方法以便多进程序列化）"""
         input_path, output_path, max_len = args
         try:
             chunk = pd.read_csv(input_path)
-            synonym = Synonym()
-            aeda = Aeda()
+            synonym = Synonym( )
+            aeda = Aeda( )
 
             results = []
 
-            for _, row in chunk.iterrows():
+            for _, row in chunk.iterrows( ):
                 text = row['text']
-                seg_labels = row['seg_label'].split()
+                seg_labels = row['seg_label'].split( )
                 cls_labels = row['cls_label']
-                ner_labels = row['ner_label'].split()
+                ner_labels = row['ner_label'].split( )
 
                 try:
                     pseudo_labels_num = pseudo_labeler.check_cls(cls_labels)
@@ -221,7 +222,7 @@ class DataAugmenterParallel:
 
                 # 分词与安全增强
                 new_texts = []
-                new_text_set = set()
+                new_text_set = set( )
                 words = jieba.lcut(text)
                 max_idx = min(len(seg_labels), len(ner_labels))
 
@@ -249,15 +250,15 @@ class DataAugmenterParallel:
                 new_texts = list(new_text_set)
                 original_embeddings = model.encode([text for _ in range(choice_num)])
                 new_embeddings = model.encode(new_texts)
-                sim_score = cosine_similarity(original_embeddings, new_embeddings).diagonal()
+                sim_score = cosine_similarity(original_embeddings, new_embeddings).diagonal( )
 
                 # 重建增强后的文本
                 results.extend({
-                                   'text': t,
+                                   'text':      t,
                                    'seg_label': row['seg_label'],
                                    'cls_label': row['cls_label'],
                                    'ner_label': row['ner_label']
-                               } for t, s in zip(new_texts, sim_score) if s >= string_threshold)
+                                   } for t, s in zip(new_texts, sim_score) if s >= string_threshold)
 
                 # AEDA
                 try:
@@ -269,16 +270,16 @@ class DataAugmenterParallel:
                             aeda_texts.append(aeda_result[0])
                             aeda_results.append(aeda_result)
                     results.extend({
-                                       'text': aeda_result[0],
+                                       'text':      aeda_result[0],
                                        'seg_label': aeda_result[1],
                                        'cls_label': cls_labels,
                                        'ner_label': aeda_result[2],
-                                   } for aeda_result in aeda_results)
+                                       } for aeda_result in aeda_results)
                 except Exception as e:
                     print(f"加载AEDA失败：{e}")
 
                 # 回译
-                trans_text_set = set()
+                trans_text_set = set( )
                 if backtrans_num > 0:
                     pre_text = text
                     trans_text_set.add(text)
@@ -299,39 +300,39 @@ class DataAugmenterParallel:
                                 continue
 
                             results.extend({
-                                'text': trans_text,
+                                'text':      trans_text,
                                 'seg_label': pseudo_labels['seg_label'],
                                 'cls_label': cls_labels,
                                 'ner_label': pseudo_labels['ner_label']
-                            })
+                                })
                     except Exception as e:
                         print(f"pseudo_labeler加载失败：{e}")
 
                 # 更新进度
-                if 'original_embeddings' in locals():
+                if 'original_embeddings' in locals( ):
                     del original_embeddings
-                if 'new_embeddings' in locals():
+                if 'new_embeddings' in locals( ):
                     del new_embeddings
-                if 'sim_score' in locals():
+                if 'sim_score' in locals( ):
                     del sim_score
-                if 'new_texts' in locals():
+                if 'new_texts' in locals( ):
                     del new_texts
-                if 'new_text_set' in locals():
+                if 'new_text_set' in locals( ):
                     del new_text_set
-                if 'aeda_results' in locals():
+                if 'aeda_results' in locals( ):
                     del aeda_results
-                if 'aeda_texts' in locals():
+                if 'aeda_texts' in locals( ):
                     del aeda_texts
-                if 'trans_texts' in locals():
+                if 'trans_texts' in locals( ):
                     del trans_texts
-                if 'trans_text_set' in locals():
+                if 'trans_text_set' in locals( ):
                     del trans_text_set
-                if 'synonyms' in locals():
+                if 'synonyms' in locals( ):
                     del synonyms
 
-                gc.collect()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+                gc.collect( )
+                if torch.cuda.is_available( ):
+                    torch.cuda.empty_cache( )
                 with lock:
                     counter.value += 1
 
@@ -344,33 +345,31 @@ class DataAugmenterParallel:
             return
         finally:
             # 显式释放资源
-            if 'chunk' in locals():
+            if 'chunk' in locals( ):
                 del chunk
-            if 'results' in locals():
+            if 'results' in locals( ):
                 del results
 
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
+            gc.collect( )
+            if torch.cuda.is_available( ):
+                torch.cuda.empty_cache( )
 
 if __name__ == '__main__':
-    args = parse_args_aug()
+    args = parse_args_aug( )
     if args.delete:
         for f in os.listdir(args.temp_dir):
             os.remove(os.path.join(args.temp_dir, f))
 
     # 全局输出锁
-    print_lock = Lock()
+    print_lock = Lock( )
 
-    def set_seed(seed=42):
+    def set_seed( seed=42 ):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         os.environ["PYTHONHASHSEED"] = str(seed)
         torch.backends.cudnn.deterministic = True
-
 
     set_seed(221213)
 
@@ -379,7 +378,7 @@ if __name__ == '__main__':
         output_csv=args.output_csv,
         temp_dir=args.temp_dir,
         chunksize=args.chunk_size
-    )
+        )
 
     try:
         augmenter.run(128, args)

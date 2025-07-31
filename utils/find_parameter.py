@@ -1,14 +1,14 @@
 import os
 
 import torch
+from tools import parse_args, set_seed
 from transformers import AutoTokenizer
 
-from tools import parse_args, set_seed
 from MutiTask.train import mtl_train
 
 if __name__ == '__main__':
     set_seed(221213)
-    args = parse_args()
+    args = parse_args( )
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_model, use_fast=True)
     device = torch.device('cuda' if torch.cuda.is_available( ) else 'cpu')
 

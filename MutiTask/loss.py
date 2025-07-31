@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class FocalLoss(nn.Module):
     def __init__( self, alpha=0.25, gamma=2.0, ignore_index=-100 ):
         super( ).__init__( )

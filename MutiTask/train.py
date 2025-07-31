@@ -1,7 +1,11 @@
 import os
+from functools import partial
 
+import numpy as np
 import torch
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import (accuracy_score, classification_report, f1_score,
+                             recall_score)
+from termcolor import colored
 from torch.optim import AdamW
 from transformers import (AutoTokenizer, EarlyStoppingCallback, EvalPrediction,
                           Trainer, TrainerCallback, TrainingArguments,
@@ -11,10 +15,7 @@ from data.preprocess import TextDataset
 from MutiTask.loss import MultiTaskLoss
 from MutiTask.model import MultiTaskModel, MultiTaskModelConfig
 from utils.tools import parse_args
-import numpy as np
-from termcolor import colored
-from functools import partial
-from sklearn.metrics import classification_report, f1_score, recall_score
+
 
 def collate_fn( batch ):
     return {
@@ -81,7 +82,7 @@ class UnfreezeCallback(TrainerCallback):
                 for param in layer.parameters( ):
                     param.requires_grad = True
 
-def mtl_compute_metrics(eval_pred: EvalPrediction, visualize: bool = False):
+def mtl_compute_metrics( eval_pred: EvalPrediction, visualize: bool = False ):
     predictions, labels = eval_pred.predictions, eval_pred.label_ids
     seg_pred, cls_pred, ner_pred = predictions
     seg_labels, cls_labels, ner_labels = labels
@@ -193,10 +194,10 @@ def mtl_compute_metrics(eval_pred: EvalPrediction, visualize: bool = False):
             'I-movie':        20,
             }
 
-        def visualize_sequence(seg_true, seg_pred, ner_true, ner_pred, seg_label_map, ner_label_map):
+        def visualize_sequence( seg_true, seg_pred, ner_true, ner_pred, seg_label_map, ner_label_map ):
             text = "这也是张路老师在新浪的足彩推荐中第四次命中头奖！"
-            seg_inv_map = {v: k for k, v in seg_label_map.items()}
-            ner_inv_map = {v: k for k, v in ner_label_map.items()}
+            seg_inv_map = {v: k for k, v in seg_label_map.items( )}
+            ner_inv_map = {v: k for k, v in ner_label_map.items( )}
 
             print("\n====" + " 预测结果可视化 " + "====")
             print("=== 原始文本 ===")
@@ -204,8 +205,8 @@ def mtl_compute_metrics(eval_pred: EvalPrediction, visualize: bool = False):
             print("\n=== 分词标签对比 ===")
             seg_tags = []
             for c, t, p in zip(text, seg_true, seg_pred):
-                seg_t = seg_inv_map.get(t.item(), f'UNK_{t.item()}')
-                seg_p = seg_inv_map.get(p.item(), f'UNK_{p.item()}')
+                seg_t = seg_inv_map.get(t.item( ), f'UNK_{t.item( )}')
+                seg_p = seg_inv_map.get(p.item( ), f'UNK_{p.item( )}')
                 color = 'green' if t == p else 'red'
                 seg_tags.append(colored(f"{c}({seg_t}->{seg_p})", color))
             print(" ".join(seg_tags))
@@ -213,15 +214,14 @@ def mtl_compute_metrics(eval_pred: EvalPrediction, visualize: bool = False):
             print("\n=== NER标签对比 ===")
             ner_tags = []
             for c, t, p in zip(text, ner_true, ner_pred):
-                ner_t = ner_inv_map.get(t.item(), f'UNK_{t.item()}')
-                ner_p = ner_inv_map.get(p.item(), f'UNK_{p.item()}')
+                ner_t = ner_inv_map.get(t.item( ), f'UNK_{t.item( )}')
+                ner_p = ner_inv_map.get(p.item( ), f'UNK_{p.item( )}')
                 color = 'green' if t == p else 'red'
                 ner_tags.append(colored(f"{c}({ner_t}->{ner_p})", color))
             print(" ".join(ner_tags))
-            print("="*50 + "\n")
+            print("=" * 50 + "\n")
 
-
-        sample_idx = 155 # Visualize the first sample in the batch
+        sample_idx = 155  # Visualize the first sample in the batch
         seg_true = seg_labels[sample_idx][seg_labels[sample_idx] != -100]
         seg_pr = seg_pred[sample_idx].argmax(-1)[seg_labels[sample_idx] != -100]
         ner_true = ner_labels[sample_idx][ner_labels[sample_idx] != -100]
@@ -233,9 +233,9 @@ def mtl_compute_metrics(eval_pred: EvalPrediction, visualize: bool = False):
         print(classification_report(
             cls_labels,
             cls_pred.argmax(-1),
-            target_names=list(cls_label_map.keys()),
+            target_names=list(cls_label_map.keys( )),
             zero_division=0
-        ))
+            ))
 
     metrics = {
         'accuracy':     avg_acc,
@@ -252,7 +252,7 @@ def mtl_compute_metrics(eval_pred: EvalPrediction, visualize: bool = False):
         'ner_f1':       ner_f1,
         'ner_recall':   ner_recall,
         'total_loss':   total_loss,
-    }
+        }
 
     return metrics
 
@@ -298,7 +298,7 @@ def mtl_train( args, tokenizer, device, is_final_eval: bool = False ):
         fp16=True,
         dataloader_pin_memory=True,
         label_names=['seg_labels', 'cls_labels', 'ner_labels'],
-        include_inputs_for_metrics=False, #可视化不依赖于原始文本输入
+        include_inputs_for_metrics=False,  # 可视化不依赖于原始文本输入
         gradient_accumulation_steps=args.grad_accumulation_steps
         )
 

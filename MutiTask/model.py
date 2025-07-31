@@ -4,6 +4,7 @@ from torch.nn import MultiheadAttention
 from transformers import BertModel, PretrainedConfig
 from transformers.modeling_utils import PreTrainedModel
 
+
 # 多任务模型
 class SharedEncoder(nn.Module):
     def __init__( self, model_name='bert-base-chinese', N_shared=8 ):
@@ -27,6 +28,7 @@ class SharedEncoder(nn.Module):
         for layer in layers:
             hidden_states = layer(hidden_states, attention_mask)[0]
         return hidden_states
+
     def forward( self, input_ids, attention_mask, task='seg' ):
         """
         task: 'seg' | 'cls' | 'ner'，决定走哪一组独立高层

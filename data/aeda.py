@@ -2,10 +2,10 @@ import random
 
 
 class Aeda:
-    def __init__(self):
+    def __init__( self ):
         self.PUNCS = {'，', '。', '！', '？', '；', '：', '、'}
 
-    def __call__(self, text, seg_labels, ner_labels, punc_ratio=0.3):
+    def __call__( self, text, seg_labels, ner_labels, punc_ratio=0.3 ):
         chars = list(text)
         insert_pos = random.sample(range(1, len(chars)), k=max(1, int(len(chars) * punc_ratio)))
         insert_pos.sort(reverse=True)
