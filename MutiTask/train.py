@@ -284,7 +284,7 @@ def mtl_train( args, tokenizer, device, is_final_eval: bool = False ):
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=args.epochs,
-        per_device_train_batch_size=args.batch_size // args.gradient_accumulation_steps,
+        per_device_train_batch_size=args.batch_size // args.grad_accumulation_steps,
         learning_rate=args.learning_rate,
         eval_strategy="epoch",
         save_strategy="epoch",
@@ -299,7 +299,7 @@ def mtl_train( args, tokenizer, device, is_final_eval: bool = False ):
         dataloader_pin_memory=True,
         label_names=['seg_labels', 'cls_labels', 'ner_labels'],
         include_inputs_for_metrics=False, #可视化不依赖于原始文本输入
-        gradient_accumulation_steps=args.gradient_accumulation_steps
+        gradient_accumulation_steps=args.grad_accumulation_steps
         )
 
     num_training_steps = len(train_dataset) // args.batch_size * args.epochs \

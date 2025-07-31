@@ -46,3 +46,15 @@ def parse_args( ):
     parser.add_argument('--ner', action='store_true', help='Enable NER model')
 
     return parser.parse_args( )
+
+def parse_args_aug( ):
+    parser = argparse.ArgumentParser(description="preprocess data")
+    parser.add_argument('--chunk_size', type=int, default=128, help='Batch size for preprocessing')
+    parser.add_argument('--input_csv', type=str, default='./data/train.csv', help='Path to input data')
+    parser.add_argument('--output_csv', type=str, default='./data/train_augment1.csv', help='Path to output data')
+    parser.add_argument('--output_dir', type=str, default='./output', help='Directory to save model checkpoints')
+    parser.add_argument('--temp_dir', type=str, default='./data/temp', help='Directory to save temp data')
+    parser.add_argument('--pretrained_model', type=str, default='bert-base-chinese', help='Pretrained BERT model')
+    parser.add_argument('--delete', action='store_true', help='Enable delete temp files')
+
+    return parser.parse_args( )
