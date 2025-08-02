@@ -65,29 +65,50 @@ class DataAugmenterParallel:
             print("没有需要处理的新数据")
             return
 
-        output_dir = f"{args.output_dir}/mtl"
-        best_model_path = f"{output_dir}/checkpoint-best"
-
-        tokenizer = AutoTokenizer.from_pretrained(args.pretrained_model, use_fast=True)
         device = torch.device('cuda' if torch.cuda.is_available( ) else 'cpu')
 
-        config = MultiTaskModelConfig(
-            model_name=args.pretrained_model
-            )
+        ro_pseudo = None
+        ro_model_name = args.roberta_model
+        ro_model_path = f"{args.roberta_dir}/mtl/checkpoint-best"
+        if not os.path.exists(ro_model_name):
+            ro_model_name = 'hfl/chinese-roberta-wwm-ext'
+        ro_config = MultiTaskModelConfig(model_name=ro_model_name)
+        ro_tokenizer = AutoTokenizer.from_pretrained(ro_model_name, use_fast=True)
+
+        mac_pseudo = None
+        mac_model_name = args.macbert_model
+        mac_model_path = f"{args.macbert_dir}/mtl/checkpoint-best"
+        if not os.path.exists(mac_model_name):
+            mac_model_name = 'hfl/chinese-macbert-base'
+        mac_config = MultiTaskModelConfig(model_name=mac_model_name)
+        mac_tokenizer = AutoTokenizer.from_pretrained(mac_model_name, use_fast=True)
 
         try:
-            best_model = MultiTaskModel.from_pretrained(best_model_path, config=config).to(device)
-            print("成功加载最佳模型")
+            if os.path.exists(ro_model_path):
+                ro_model = MultiTaskModel.from_pretrained(ro_model_path, config=ro_config).to(device)
+                ro_pseudo = PseudoLabeler(ro_model, ro_tokenizer, max_len=max_len)
+
+            if os.path.exists(mac_model_path):
+                mac_model = MultiTaskModel.from_pretrained(mac_model_path, config=mac_config).to(device)
+                mac_pseudo = PseudoLabeler(mac_model, mac_tokenizer, max_len=max_len)
         except Exception as e:
-            print(f"加载模型失败：{e}")
+            print(f"加载伪标签模型失败：{e}")
+
+        if ro_pseudo is None and mac_pseudo is None:
+            raise ValueError(f"{ro_model_path} and {mac_model_path} not exists best model")
+            return
+        else:
+            if ro_pseudo is not None:
+                print("已加载roberta")
+            if mac_pseudo is not None:
+                print("已加载macbert")
 
         try:
             model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2',
                                         device="cuda" if torch.cuda.is_available( ) else "cpu")
-            pseudo_labeler = PseudoLabeler(best_model, tokenizer, max_len=max_len)
             back_translator = BackTranslator(max_len=max_len)
         except Exception as e:
-            print(f"加载伪标签模型失败：{e}")
+            print(f"加载回译模型失败：{e}")
 
         # 主进度条：跟踪总增强文本量
         bar_format = "{l_bar}{bar:50}{r_bar}{bar:-50b}"
@@ -104,7 +125,7 @@ class DataAugmenterParallel:
                     # 提交任务时绑定回调函数
                     results.append(pool.apply_async(
                         self._process_chunk,
-                        (model, pseudo_labeler, back_translator, (input_path, output_path, max_len))
+                        (model, back_translator, (input_path, output_path, max_len), mac_pseudo, ro_pseudo)
                         ))
 
                 last_value = 0
@@ -194,7 +215,7 @@ class DataAugmenterParallel:
             torch.cuda.empty_cache( )
 
     @staticmethod
-    def _process_chunk( model, pseudo_labeler, back_translator, args ):
+    def _process_chunk( model, back_translator, args, mac_pseudo, ro_pseudo ):
         """处理单个数据块（静态方法以便多进程序列化）"""
         input_path, output_path, max_len = args
         try:
@@ -211,7 +232,10 @@ class DataAugmenterParallel:
                 ner_labels = row['ner_label'].split( )
 
                 try:
-                    pseudo_labels_num = pseudo_labeler.check_cls(cls_labels)
+                    if mac_pseudo is not None:
+                        pseudo_labels_num = mac_pseudo.check_cls(cls_labels)
+                    else:
+                        pseudo_labels_num = ro_pseudo.check_cls(cls_labels)
                 except Exception as e:
                     print(f"分类区分失败：{e}")
                 word_threshold = pseudo_labels_num['word_threshold']
@@ -239,7 +263,7 @@ class DataAugmenterParallel:
                             continue
                         # 安全同义词替换（保持长度一致）
                         synonyms = synonym.get_safe_synonyms(word, seg_labels[char_index], ner_labels[char_index],
-                                                             word_threshold, string_threshold, choice_num=choice_num)
+                                                             word_threshold, string_threshold, choice_num)
                         new_word = random.choice(synonyms)
                         new_words.append(new_word if len(new_word) == len(word) else word)
                         char_index += word_len
@@ -252,29 +276,15 @@ class DataAugmenterParallel:
                 new_embeddings = model.encode(new_texts)
                 sim_score = cosine_similarity(original_embeddings, new_embeddings).diagonal( )
 
-                # 重建增强后的文本
-                results.extend({
-                                   'text':      t,
-                                   'seg_label': row['seg_label'],
-                                   'cls_label': row['cls_label'],
-                                   'ner_label': row['ner_label']
-                                   } for t, s in zip(new_texts, sim_score) if s >= string_threshold)
-
                 # AEDA
+                aeda_texts = []
+                aug_results = []
                 try:
-                    aeda_texts = []
-                    aeda_results = []
                     for _ in range(aeda_num):
                         aeda_result = aeda(text, seg_labels, ner_labels, punc_ratio=0.3)
                         if aeda_result[0] not in aeda_texts:
                             aeda_texts.append(aeda_result[0])
-                            aeda_results.append(aeda_result)
-                    results.extend({
-                                       'text':      aeda_result[0],
-                                       'seg_label': aeda_result[1],
-                                       'cls_label': cls_labels,
-                                       'ner_label': aeda_result[2],
-                                       } for aeda_result in aeda_results)
+                            aug_results.append(aeda_result)
                 except Exception as e:
                     print(f"加载AEDA失败：{e}")
 
@@ -295,18 +305,48 @@ class DataAugmenterParallel:
                     try:
                         trans_texts = list(trans_text_set)
                         for trans_text in trans_texts:
-                            pseudo_labels = pseudo_labeler(trans_text)
-                            if pseudo_labels is None:
-                                continue
+                            if mac_pseudo is not None:
+                                mac_labels = mac_pseudo(trans_text)
+                            if ro_pseudo is not None:
+                                ro_labels = ro_pseudo(trans_text)
+                            
+                            pseudo_result = [trans_text]
 
-                            results.extend({
-                                'text':      trans_text,
-                                'seg_label': pseudo_labels['seg_label'],
-                                'cls_label': cls_labels,
-                                'ner_label': pseudo_labels['ner_label']
-                                })
+                            # 实测mac_bert在seg方面略好于ro_bert
+                            if mac_labels[0] is None:
+                                if ro_labels[0] is None:
+                                    continue
+                                else:
+                                    pseudo_result.append(ro_labels[0])
+                            else:
+                                pseudo_result.append(mac_labels[0])
+
+                            # 实测ro_bert在ner方面略好于mac_bert
+                            if ro_labels[1] is None:
+                                if mac_labels[1] is None:
+                                    continue
+                                else:
+                                    pseudo_result.append(mac_labels[1])
+                            else:
+                                pseudo_result.append(ro_labels[1])
+
+                            aug_results.append(pseudo_result)
                     except Exception as e:
                         print(f"pseudo_labeler加载失败：{e}")
+
+                results.extend({
+                   'text':      t,
+                   'seg_label': row['seg_label'],
+                   'cls_label': row['cls_label'],
+                   'ner_label': row['ner_label']
+                   } for t, s in zip(new_texts, sim_score) if s >= string_threshold)
+
+                results.extend({
+                    'text':      aug_result[0],
+                    'seg_label': aug_result[1],
+                    'cls_label': cls_labels,
+                    'ner_label': aug_result[2]
+                    } for aug_result in aug_results)
 
                 # 更新进度
                 if 'original_embeddings' in locals( ):
@@ -319,16 +359,12 @@ class DataAugmenterParallel:
                     del new_texts
                 if 'new_text_set' in locals( ):
                     del new_text_set
-                if 'aeda_results' in locals( ):
-                    del aeda_results
                 if 'aeda_texts' in locals( ):
                     del aeda_texts
-                if 'trans_texts' in locals( ):
-                    del trans_texts
                 if 'trans_text_set' in locals( ):
                     del trans_text_set
-                if 'synonyms' in locals( ):
-                    del synonyms
+                if 'aug_results' in locals():
+                    del aug_results
 
                 gc.collect( )
                 if torch.cuda.is_available( ):

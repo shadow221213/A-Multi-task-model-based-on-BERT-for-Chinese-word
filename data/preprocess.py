@@ -14,7 +14,7 @@ class TextDataset(Dataset):
 
         if augment:
             splitext = os.path.splitext(csv_path)
-            csv_path = splitext[0] + '_augment' + splitext[1]
+            csv_path = splitext[0] + '_augment1' + splitext[1]
             print("已进行数据增强")
 
         self.data = pd.read_csv(csv_path)
@@ -72,7 +72,7 @@ class TextDataset(Dataset):
         ner_labels = self.data['ner_label'].iloc[idx].split( )
 
         assert len(text) == len(seg_labels) == len(ner_labels), \
-            f"文本长度({len(text)})与标签数量(seg:{len(seg_labels)}, ner:{len(ner_labels)})不匹配\n文本：{text}"
+            f"文本长度({len(text)})与标签数量(seg:{len(seg_labels)}, ner:{len(ner_labels)})不匹配\n文本：{text}\nseg：{seg_labels}\nner：{ner_labels}"
 
         # 文本编码
         encoding = self.tokenizer.encode_plus(

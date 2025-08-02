@@ -35,7 +35,7 @@ class Synonym:
         return pseg.lcut(original_word)[0].flag == pseg.lcut(candidate_word)[0].flag
 
     @lru_cache(maxsize=1000)
-    def get_safe_synonyms( self, word, seg_tag, ner_tag, word_level, string_level, choice_num=5 ):
+    def get_safe_synonyms( self, word, seg_tag, ner_tag, word_level, string_level, choice_num ):
         """获取符合实体类型约束的同义词"""
         if word in self.punctuations or len(word) == 1:  # 跳过标点和单字
             return [word]

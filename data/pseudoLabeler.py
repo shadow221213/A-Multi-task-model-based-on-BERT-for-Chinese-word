@@ -40,17 +40,17 @@ class PseudoLabeler:
         ner_conf, ner_pred = ner_probs.max(-1)
 
         # 应用阈值
-        if (seg_conf < self.word_threshold).any( ) or (ner_conf < self.word_threshold).any( ):
-            return None
+        if (seg_conf < self.word_threshold).any( ):
+            seg_label = None
+        else:
+            seg_label = ' '.join(map(str, seg_pred[0].cpu( ).numpy( ).tolist( )))
 
-        # 转为字符串
-        seg_label = ' '.join(map(str, seg_pred[0].cpu( ).numpy( ).tolist( )))
-        ner_label = ' '.join(map(str, ner_pred[0].cpu( ).numpy( ).tolist( )))
+        if (ner_conf < self.word_threshold).any( ):
+            ner_label = None
+        else:
+            ner_label = ' '.join(map(str, ner_pred[0].cpu( ).numpy( ).tolist( )))
 
-        return {
-            'seg_label': seg_label,
-            'ner_label': ner_label
-            }
+        return [seg_label, ner_label]
 
     def check_cls( self, cls_label ):
         # 根据类别占比调整阈值（2：9：18：30）
